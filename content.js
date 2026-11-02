@@ -14,58 +14,77 @@ assistant.innerHTML = `
 document.body.appendChild(assistant);
 
 let currentLang = "en";
-let currentFieldName = ""; 
 let currentActiveElement = null; 
 
-// 2. Specialized Dictionary (Only for complex words that need explanations, not just direct translations)
+// 2. Local Dictionary for "Slang" and Web Acronyms (Things not in a normal dictionary)
 const dictionary = {
-  "beneficiary": { en: "The person who will receive the money or benefits.", hi: "वह व्यक्ति जिसे पैसा या लाभ मिलेगा (लाभार्थी)।" },
-  "indemnity": { en: "Protection against damage or financial loss.", hi: "नुकसान या वित्तीय हानि से सुरक्षा (क्षतिपूर्ति)।" },
-  "spouse": { en: "Your legally married husband or wife.", hi: "आपका कानूनी रूप से विवाहित पति या पत्नी।" },
-  "dob": { en: "Date of Birth: The exact day, month, and year you were born.", hi: "जन्म तिथि: वह दिन, महीना और वर्ष जब आपका जन्म हुआ था।" },
-  "otp": { en: "One Time Password: A temporary code sent to your phone or email.", hi: "वन टाइम पासवर्ड: आपके फोन या ईमेल पर भेजा गया एक अस्थायी कोड।" }
+  "fname": { en: "Your first given name.", hi: "आपका पहला नाम।" },
+  "lname": { en: "Your family name or surname.", hi: "आपके परिवार का नाम या उपनाम।" },
+  "email": { en: "Your electronic mail address.", hi: "आपका ईमेल पता।" },
+  "dob": { en: "Date of Birth: The exact day, month, and year you were born.", hi: "जन्म तिथि।" },
+  "zip": { en: "A postal code used to sort mail.", hi: "पिन कोड।" },
+  "otp": { en: "One Time Password: A temporary code sent to you.", hi: "वन टाइम पासवर्ड।" },
+  "beneficiary": { en: "The person who will receive the money or benefits.", hi: "वह व्यक्ति जिसे पैसा या लाभ मिलेगा (लाभार्थी)।" }
 };
 
-// 3. Smart Live API Translation Logic
+// 3. 100,000+ Word Live Dictionary Engine
 async function updatePopupText() {
   if (!currentActiveElement) return;
 
-  let rawName = (currentActiveElement.placeholder || currentActiveElement.name || currentActiveElement.id || "information");
-  rawName = rawName.replace(/[-_]/g, " ").trim();
-  let matchedTerm = rawName.toUpperCase();
+  // Extract all data from the clicked box
+  let nameAttr = (currentActiveElement.name || "").toLowerCase();
+  let idAttr = (currentActiveElement.id || "").toLowerCase();
+  let placeholderAttr = (currentActiveElement.placeholder || "").toLowerCase();
+  let fullText = `${nameAttr} ${idAttr} ${placeholderAttr}`;
 
-  document.getElementById("formpilot-title").innerText = matchedTerm + ":";
-
-  // Check the specialized dictionary first
+  // STEP 1: Check Local Dictionary First
   for (const [term, meanings] of Object.entries(dictionary)) {
-    if (currentFieldName.includes(term)) {
-      document.getElementById("formpilot-text").innerText = meanings[currentLang];
+    if (fullText.includes(term)) {
+      document.getElementById("formpilot-title").innerText = term.toUpperCase() + ":";
+      document.getElementById("formpilot-text").innerText = currentLang === "en" ? meanings.en : meanings.hi;
       return; 
     }
   }
 
-  // If not in dictionary, handle it dynamically
-  if (currentLang === "en") {
-    document.getElementById("formpilot-text").innerText = `This field is asking for: "${rawName}".`;
-  } else {
-    // Show a loading message while waiting for the live API
-    document.getElementById("formpilot-text").innerText = "अनुवाद हो रहा है... (Translating...)";
+  // STEP 2: Find the main word and search the Live Dictionary
+  document.getElementById("formpilot-title").innerText = "SEARCHING...";
+  document.getElementById("formpilot-text").innerText = "Fetching meaning from 100,000+ word database...";
+
+  // Get the longest, most important word from the placeholder or name
+  let rawWords = placeholderAttr.split(" ").concat(nameAttr.split("_"), idAttr.split("-"));
+  let searchWord = rawWords.sort((a, b) => b.length - a.length)[0].replace(/[^a-zA-Z]/g, '');
+
+  try {
+    // Ping the official Free Dictionary API
+    let dictResponse = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${searchWord}`);
     
-    try {
-      // Connect to a free translation API
-      const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(rawName)}&langpair=en|hi`);
-      const data = await response.json();
+    if (dictResponse.ok) {
+      let data = await dictResponse.json();
+      let englishMeaning = data[0].meanings[0].definitions[0].definition; // Get the actual meaning
       
-      if (data && data.responseData && data.responseData.translatedText) {
-        document.getElementById("formpilot-text").innerText = `इस फ़ील्ड में यह जानकारी मांगी गई है: "${data.responseData.translatedText}"।`;
+      document.getElementById("formpilot-title").innerText = searchWord.toUpperCase() + ":";
+      
+      if (currentLang === "en") {
+        document.getElementById("formpilot-text").innerText = englishMeaning;
       } else {
-        throw new Error("Translation missing");
+        document.getElementById("formpilot-text").innerText = "अनुवाद हो रहा है... (Translating...)";
+        // Translate the dictionary meaning to Hindi
+        let transResponse = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(englishMeaning)}&langpair=en|hi`);
+        let transData = await transResponse.json();
+        document.getElementById("formpilot-text").innerText = transData.responseData.translatedText;
       }
-    } catch (error) {
-      // Fallback if the user's internet is offline
-      document.getElementById("formpilot-text").innerText = `इस फ़ील्ड में यह जानकारी मांगी गई है: "${rawName}"।`;
+      return;
     }
+  } catch (error) {
+    console.log("Dictionary lookup failed.");
   }
+
+  // STEP 3: Ultimate Fallback if the word is total gibberish
+  let fallbackWord = currentActiveElement.placeholder || currentActiveElement.name || "information";
+  document.getElementById("formpilot-title").innerText = "FIELD INSTRUCTIONS:";
+  document.getElementById("formpilot-text").innerText = currentLang === "en" 
+    ? `Please enter your ${fallbackWord} here.` 
+    : `कृपया यहां अपना ${fallbackWord} दर्ज करें।`;
 }
 
 // 4. Language Button Logic
@@ -81,7 +100,6 @@ langBtn.addEventListener("click", function() {
 document.addEventListener("focusin", function(event) {
   if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") {
     currentActiveElement = event.target;
-    currentFieldName = (event.target.name || event.target.id || event.target.placeholder || "").toLowerCase();
     
     const parentForm = event.target.closest("form");
     let allFields = parentForm 
@@ -98,8 +116,9 @@ document.addEventListener("focusin", function(event) {
     assistant.style.display = "block";
     updatePopupText();
     
+    let fieldText = (currentActiveElement.name || currentActiveElement.id || currentActiveElement.placeholder || "").toLowerCase();
     const warningEl = document.getElementById("formpilot-warning");
-    if (currentFieldName.includes("pin") || currentFieldName.includes("zip") || currentFieldName.includes("otp")) {
+    if (fieldText.includes("pin") || fieldText.includes("zip") || fieldText.includes("otp")) {
       warningEl.innerText = currentLang === "en" ? "Reminder: Codes are usually exactly 6 digits." : "अनुस्मारक: कोड आमतौर पर 6 अंकों का होता है।";
       warningEl.style.color = "blue";
       warningEl.style.display = "block";
@@ -111,7 +130,8 @@ document.addEventListener("focusin", function(event) {
 
 // 6. Live Typing Validation
 document.addEventListener("input", function(event) {
-  if (currentFieldName.includes("pin") || currentFieldName.includes("zip") || currentFieldName.includes("otp")) {
+  let fieldText = (event.target.name || event.target.id || event.target.placeholder || "").toLowerCase();
+  if (fieldText.includes("pin") || fieldText.includes("zip") || fieldText.includes("otp")) {
     let typedValue = event.target.value;
     const warningEl = document.getElementById("formpilot-warning");
     
