@@ -17,50 +17,55 @@ let currentLang = "en";
 let currentFieldName = ""; 
 let currentActiveElement = null; 
 
-// 2. Master Bilingual Dictionary (Complex + Common Words)
+// 2. Specialized Dictionary (Only for complex words that need explanations, not just direct translations)
 const dictionary = {
   "beneficiary": { en: "The person who will receive the money or benefits.", hi: "वह व्यक्ति जिसे पैसा या लाभ मिलेगा (लाभार्थी)।" },
   "indemnity": { en: "Protection against damage or financial loss.", hi: "नुकसान या वित्तीय हानि से सुरक्षा (क्षतिपूर्ति)।" },
   "spouse": { en: "Your legally married husband or wife.", hi: "आपका कानूनी रूप से विवाहित पति या पत्नी।" },
-  "fname": { en: "Your first given name.", hi: "आपका पहला नाम।" },
-  "first": { en: "Your first given name.", hi: "आपका पहला नाम।" },
-  "lname": { en: "Your family name or surname.", hi: "आपके परिवार का नाम या उपनाम।" },
-  "last": { en: "Your family name or surname.", hi: "आपके परिवार का नाम या उपनाम।" },
-  "email": { en: "Your electronic mail address (e.g., you@example.com).", hi: "आपका ईमेल पता (जैसे, you@example.com)।" },
-  "mail": { en: "Your electronic mail address.", hi: "आपका ईमेल पता।" },
-  "pass": { en: "A secret word or phrase to protect your account.", hi: "आपके खाते की सुरक्षा के लिए एक गुप्त शब्द (पासवर्ड)।" },
-  "address": { en: "The physical location where you live or receive mail.", hi: "वह स्थान जहाँ आप रहते हैं या डाक प्राप्त करते हैं।" },
-  "phone": { en: "Your mobile or landline contact number.", hi: "आपका मोबाइल या लैंडलाइन नंबर।" },
-  "mobile": { en: "Your mobile contact number.", hi: "आपका मोबाइल नंबर।" },
   "dob": { en: "Date of Birth: The exact day, month, and year you were born.", hi: "जन्म तिथि: वह दिन, महीना और वर्ष जब आपका जन्म हुआ था।" },
-  "zip": { en: "A postal code used to sort mail.", hi: "डाक छांटने के लिए इस्तेमाल किया जाने वाला कोड (पिन कोड)।" },
-  "search": { en: "Type what you are looking for here to find it on this website.", hi: "इस वेबसाइट पर आप जो खोजना चाहते हैं, उसे यहां टाइप करें।" }
+  "otp": { en: "One Time Password: A temporary code sent to your phone or email.", hi: "वन टाइम पासवर्ड: आपके फोन या ईमेल पर भेजा गया एक अस्थायी कोड।" }
 };
 
-// 3. Smart Translation Logic
-function updatePopupText() {
+// 3. Smart Live API Translation Logic
+async function updatePopupText() {
   if (!currentActiveElement) return;
 
-  // Fallback generation for unknown words
   let rawName = (currentActiveElement.placeholder || currentActiveElement.name || currentActiveElement.id || "information");
   rawName = rawName.replace(/[-_]/g, " ").trim();
-  
-  let explanation = currentLang === "en" 
-    ? `Please enter your ${rawName} in this field.` 
-    : `कृपया इस फ़ील्ड में अपना ${rawName} दर्ज करें।`;
   let matchedTerm = rawName.toUpperCase();
 
-  // Dictionary check for accurate Hindi translations
+  document.getElementById("formpilot-title").innerText = matchedTerm + ":";
+
+  // Check the specialized dictionary first
   for (const [term, meanings] of Object.entries(dictionary)) {
     if (currentFieldName.includes(term)) {
-      explanation = meanings[currentLang];
-      matchedTerm = term.toUpperCase();
-      break; 
+      document.getElementById("formpilot-text").innerText = meanings[currentLang];
+      return; 
     }
   }
 
-  document.getElementById("formpilot-title").innerText = matchedTerm + ":";
-  document.getElementById("formpilot-text").innerText = explanation;
+  // If not in dictionary, handle it dynamically
+  if (currentLang === "en") {
+    document.getElementById("formpilot-text").innerText = `This field is asking for: "${rawName}".`;
+  } else {
+    // Show a loading message while waiting for the live API
+    document.getElementById("formpilot-text").innerText = "अनुवाद हो रहा है... (Translating...)";
+    
+    try {
+      // Connect to a free translation API
+      const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(rawName)}&langpair=en|hi`);
+      const data = await response.json();
+      
+      if (data && data.responseData && data.responseData.translatedText) {
+        document.getElementById("formpilot-text").innerText = `इस फ़ील्ड में यह जानकारी मांगी गई है: "${data.responseData.translatedText}"।`;
+      } else {
+        throw new Error("Translation missing");
+      }
+    } catch (error) {
+      // Fallback if the user's internet is offline
+      document.getElementById("formpilot-text").innerText = `इस फ़ील्ड में यह जानकारी मांगी गई है: "${rawName}"।`;
+    }
+  }
 }
 
 // 4. Language Button Logic
@@ -94,8 +99,8 @@ document.addEventListener("focusin", function(event) {
     updatePopupText();
     
     const warningEl = document.getElementById("formpilot-warning");
-    if (currentFieldName.includes("pin") || currentFieldName.includes("zip")) {
-      warningEl.innerText = currentLang === "en" ? "Reminder: Codes are usually exactly 6 digits." : "अनुस्मारक: पिन कोड ठीक 6 अंकों का होना चाहिए।";
+    if (currentFieldName.includes("pin") || currentFieldName.includes("zip") || currentFieldName.includes("otp")) {
+      warningEl.innerText = currentLang === "en" ? "Reminder: Codes are usually exactly 6 digits." : "अनुस्मारक: कोड आमतौर पर 6 अंकों का होता है।";
       warningEl.style.color = "blue";
       warningEl.style.display = "block";
     } else {
@@ -106,16 +111,16 @@ document.addEventListener("focusin", function(event) {
 
 // 6. Live Typing Validation
 document.addEventListener("input", function(event) {
-  if (currentFieldName.includes("pin") || currentFieldName.includes("zip")) {
+  if (currentFieldName.includes("pin") || currentFieldName.includes("zip") || currentFieldName.includes("otp")) {
     let typedValue = event.target.value;
     const warningEl = document.getElementById("formpilot-warning");
     
     if (typedValue.length > 0 && typedValue.length !== 6) {
-      warningEl.innerText = currentLang === "en" ? "⚠️ Error: Code must be exactly 6 digits!" : "⚠️ त्रुटि: पिन कोड ठीक 6 अंकों का होना चाहिए!";
+      warningEl.innerText = currentLang === "en" ? "⚠️ Error: Code must be exactly 6 digits!" : "⚠️ त्रुटि: कोड ठीक 6 अंकों का होना चाहिए!";
       warningEl.style.color = "red";
       warningEl.style.display = "block";
     } else if (typedValue.length === 6) {
-      warningEl.innerText = currentLang === "en" ? "✅ Code looks perfect!" : "✅ पिन कोड सही है!";
+      warningEl.innerText = currentLang === "en" ? "✅ Code looks perfect!" : "✅ कोड सही है!";
       warningEl.style.color = "green";
     }
   }
