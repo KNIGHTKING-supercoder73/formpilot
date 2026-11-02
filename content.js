@@ -1,4 +1,4 @@
-// 1. Create the assistant window (Now with Progress Tracker element)
+// 1. Create the assistant window (With Progress Tracker & Language Toggle)
 const assistant = document.createElement("div");
 assistant.id = "formpilot-assistant";
 assistant.innerHTML = `
@@ -13,23 +13,30 @@ assistant.innerHTML = `
 `;
 document.body.appendChild(assistant);
 
-// 2. State & Dictionary
+// 2. State & Expanded Bilingual Dictionary
 let currentLang = "en";
 let currentFieldName = ""; 
 
 const dictionary = {
-  "beneficiary": {
-    en: "The person who will receive the money or benefits.",
-    hi: "वह व्यक्ति जिसे पैसा या लाभ मिलेगा (लाभार्थी)।"
-  },
-  "indemnity": {
-    en: "Protection or security against damage or financial loss.",
-    hi: "नुकसान या वित्तीय हानि से सुरक्षा (क्षतिपूर्ति)।"
-  },
-  "spouse": {
-    en: "Your legally married husband or wife.",
-    hi: "आपका कानूनी रूप से विवाहित पति या पत्नी।"
-  }
+  "beneficiary": { en: "The person who will receive the money or benefits.", hi: "वह व्यक्ति जिसे पैसा या लाभ मिलेगा (लाभार्थी)।" },
+  "indemnity": { en: "Protection or security against damage or financial loss.", hi: "नुकसान या वित्तीय हानि से सुरक्षा (क्षतिपूर्ति)।" },
+  "spouse": { en: "Your legally married husband or wife.", hi: "आपका कानूनी रूप से विवाहित पति या पत्नी।" },
+  
+  // Common Form Fields added below
+  "fname": { en: "Your first given name.", hi: "आपका पहला नाम।" },
+  "first": { en: "Your first given name.", hi: "आपका पहला नाम।" },
+  "lname": { en: "Your family name or surname.", hi: "आपके परिवार का नाम या उपनाम।" },
+  "last": { en: "Your family name or surname.", hi: "आपके परिवार का नाम या उपनाम।" },
+  "email": { en: "Your electronic mail address (e.g., you@example.com).", hi: "आपका ईमेल पता (जैसे, you@example.com)।" },
+  "mail": { en: "Your electronic mail address.", hi: "आपका ईमेल पता।" },
+  "pass": { en: "A secret word or phrase to protect your account.", hi: "आपके खाते की सुरक्षा के लिए एक गुप्त शब्द (पासवर्ड)।" },
+  "address": { en: "The physical location where you live or receive mail.", hi: "वह स्थान जहाँ आप रहते हैं या डाक प्राप्त करते हैं।" },
+  "phone": { en: "Your mobile or landline contact number.", hi: "आपका मोबाइल या लैंडलाइन नंबर।" },
+  "mobile": { en: "Your mobile contact number.", hi: "आपका मोबाइल नंबर।" },
+  "dob": { en: "Date of Birth: The exact day, month, and year you were born.", hi: "जन्म तिथि: वह दिन, महीना और वर्ष जब आपका जन्म हुआ था।" },
+  "birth": { en: "The date you were born.", hi: "आपके जन्म की तारीख।" },
+  "zip": { en: "A postal code used to sort mail.", hi: "डाक छांटने के लिए इस्तेमाल किया जाने वाला कोड (पिन कोड)।" },
+  "search": { en: "Type what you are looking for here to find it on this website.", hi: "इस वेबसाइट पर आप जो खोजना चाहते हैं, उसे यहां टाइप करें।" }
 };
 
 // 3. Update UI Text
@@ -57,7 +64,6 @@ langBtn.addEventListener("click", function() {
   this.innerText = currentLang === "en" ? "हिंदी" : "English";
   updatePopupText(); 
   
-  // Re-trigger the focus event to update progress translation instantly
   const activeElement = document.activeElement;
   if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA")) {
     activeElement.blur();
@@ -71,24 +77,24 @@ document.addEventListener("focusin", function(event) {
     assistant.style.display = "block";
     currentFieldName = (event.target.name || event.target.id || event.target.placeholder || "").toLowerCase();
     
-    // --- Progress Tracker Logic ---
-    // Find the specific form this input belongs to
     const parentForm = event.target.closest("form");
-    
     let allFields = [];
+    
     if (parentForm) {
-      // If inside a form, only count fields inside that specific form
       allFields = Array.from(parentForm.querySelectorAll("input:not([type='hidden']):not([type='submit']):not([type='button']), textarea"));
     } else {
-      // Fallback: if there is no form tag, count all fields on the page
       allFields = Array.from(document.querySelectorAll("input:not([type='hidden']):not([type='submit']):not([type='button']), textarea"));
     }
     
     const currentIndex = allFields.indexOf(event.target) + 1;
     const totalFields = allFields.length;
     
-    document.getElementById("formpilot-progress").innerText = currentLang === "en" ? `Step ${currentIndex} of ${totalFields}` : `चरण ${currentIndex} / ${totalFields}`;
-    // ------------------------------
+    if (totalFields > 0) {
+      document.getElementById("formpilot-progress").innerText = currentLang === "en" ? `Step ${currentIndex} of ${totalFields}` : `चरण ${currentIndex} / ${totalFields}`;
+    } else {
+      document.getElementById("formpilot-progress").innerText = "";
+    }
+
     updatePopupText();
     
     const warningEl = document.getElementById("formpilot-warning");
@@ -102,7 +108,7 @@ document.addEventListener("focusin", function(event) {
   }
 });
 
-// 6. Live typing check (Bilingual)
+// 6. Live typing check (Bilingual validation)
 document.addEventListener("input", function(event) {
   if (currentFieldName.includes("pin")) {
     let typedValue = event.target.value;
