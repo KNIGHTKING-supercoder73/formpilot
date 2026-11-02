@@ -1,4 +1,4 @@
-// 1. Create the assistant window with strict CSS to block website interference
+// 1. Create the assistant window
 const assistant = document.createElement("div");
 assistant.id = "formpilot-assistant";
 assistant.innerHTML = `
@@ -15,36 +15,47 @@ document.body.appendChild(assistant);
 
 let currentLang = "en";
 let currentFieldName = ""; 
-let currentActiveElement = null; // Remembers the exact box clicked
+let currentActiveElement = null; 
 
-// 2. Specialized Legal/Complex Dictionary
+// 2. Master Bilingual Dictionary (Complex + Common Words)
 const dictionary = {
   "beneficiary": { en: "The person who will receive the money or benefits.", hi: "वह व्यक्ति जिसे पैसा या लाभ मिलेगा (लाभार्थी)।" },
   "indemnity": { en: "Protection against damage or financial loss.", hi: "नुकसान या वित्तीय हानि से सुरक्षा (क्षतिपूर्ति)।" },
   "spouse": { en: "Your legally married husband or wife.", hi: "आपका कानूनी रूप से विवाहित पति या पत्नी।" },
-  "dob": { en: "Date of Birth: The exact day, month, and year you were born.", hi: "जन्म तिथि: वह दिन, महीना और वर्ष जब आपका जन्म हुआ था।" }
+  "fname": { en: "Your first given name.", hi: "आपका पहला नाम।" },
+  "first": { en: "Your first given name.", hi: "आपका पहला नाम।" },
+  "lname": { en: "Your family name or surname.", hi: "आपके परिवार का नाम या उपनाम।" },
+  "last": { en: "Your family name or surname.", hi: "आपके परिवार का नाम या उपनाम।" },
+  "email": { en: "Your electronic mail address (e.g., you@example.com).", hi: "आपका ईमेल पता (जैसे, you@example.com)।" },
+  "mail": { en: "Your electronic mail address.", hi: "आपका ईमेल पता।" },
+  "pass": { en: "A secret word or phrase to protect your account.", hi: "आपके खाते की सुरक्षा के लिए एक गुप्त शब्द (पासवर्ड)।" },
+  "address": { en: "The physical location where you live or receive mail.", hi: "वह स्थान जहाँ आप रहते हैं या डाक प्राप्त करते हैं।" },
+  "phone": { en: "Your mobile or landline contact number.", hi: "आपका मोबाइल या लैंडलाइन नंबर।" },
+  "mobile": { en: "Your mobile contact number.", hi: "आपका मोबाइल नंबर।" },
+  "dob": { en: "Date of Birth: The exact day, month, and year you were born.", hi: "जन्म तिथि: वह दिन, महीना और वर्ष जब आपका जन्म हुआ था।" },
+  "zip": { en: "A postal code used to sort mail.", hi: "डाक छांटने के लिए इस्तेमाल किया जाने वाला कोड (पिन कोड)।" },
+  "search": { en: "Type what you are looking for here to find it on this website.", hi: "इस वेबसाइट पर आप जो खोजना चाहते हैं, उसे यहां टाइप करें।" }
 };
 
-// 3. Dynamic "Infinite" Dictionary Logic
+// 3. Smart Translation Logic
 function updatePopupText() {
   if (!currentActiveElement) return;
 
-  // Grab the website's code name for the box and clean it up (e.g. "first_name" becomes "first name")
+  // Fallback generation for unknown words
   let rawName = (currentActiveElement.placeholder || currentActiveElement.name || currentActiveElement.id || "information");
   rawName = rawName.replace(/[-_]/g, " ").trim();
   
-  // Create a dynamic sentence automatically if it's a normal word
   let explanation = currentLang === "en" 
     ? `Please enter your ${rawName} in this field.` 
     : `कृपया इस फ़ील्ड में अपना ${rawName} दर्ज करें।`;
   let matchedTerm = rawName.toUpperCase();
 
-  // Override with specialized definitions if it's a complex legal word
+  // Dictionary check for accurate Hindi translations
   for (const [term, meanings] of Object.entries(dictionary)) {
     if (currentFieldName.includes(term)) {
       explanation = meanings[currentLang];
       matchedTerm = term.toUpperCase();
-      break;
+      break; 
     }
   }
 
@@ -67,7 +78,6 @@ document.addEventListener("focusin", function(event) {
     currentActiveElement = event.target;
     currentFieldName = (event.target.name || event.target.id || event.target.placeholder || "").toLowerCase();
     
-    // Progress Tracker
     const parentForm = event.target.closest("form");
     let allFields = parentForm 
       ? Array.from(parentForm.querySelectorAll("input:not([type='hidden']):not([type='submit']):not([type='button']), textarea"))
@@ -80,11 +90,9 @@ document.addEventListener("focusin", function(event) {
       ? (currentLang === "en" ? `Step ${currentIndex} of ${totalFields}` : `चरण ${currentIndex} / ${totalFields}`)
       : "";
 
-    // Show box and generate text
     assistant.style.display = "block";
     updatePopupText();
     
-    // Warnings
     const warningEl = document.getElementById("formpilot-warning");
     if (currentFieldName.includes("pin") || currentFieldName.includes("zip")) {
       warningEl.innerText = currentLang === "en" ? "Reminder: Codes are usually exactly 6 digits." : "अनुस्मारक: पिन कोड ठीक 6 अंकों का होना चाहिए।";
