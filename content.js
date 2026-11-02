@@ -76,3 +76,64 @@ document.addEventListener("focusin", function(event) {
 document.addEventListener("focusout", function(event) {
   setTimeout(() => { assistant.style.display = "none"; }, 150); 
 });
+// 5. Trigger FormPilot on Click (Now with Privacy Warnings)
+document.addEventListener("focusin", function(event) {
+  if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") {
+    currentActiveElement = event.target;
+    assistant.style.display = "block";
+    updatePopupText();
+    
+    let fieldText = (currentActiveElement.name || currentActiveElement.id || currentActiveElement.placeholder || "").toLowerCase();
+    const warningEl = document.getElementById("formpilot-warning");
+    
+    // Privacy and formatting rules
+    if (fieldText.includes("pin") || fieldText.includes("otp") || fieldText.includes("pass")) {
+      warningEl.innerText = currentLang === "en" 
+        ? "🔒 Privacy Alert: Never share this secret code with anyone. (Requires 6 digits for PIN/OTP)" 
+        : "🔒 गोपनीयता चेतावनी: यह कोड किसी के साथ साझा न करें। (पिन 6 अंकों का होना चाहिए)";
+      warningEl.style.color = "#d9534f"; // Reddish warning
+      warningEl.style.display = "block";
+    } else if (fieldText.includes("zip")) {
+      warningEl.innerText = currentLang === "en" ? "Reminder: Zip codes are usually exactly 6 digits." : "अनुस्मारक: पिन कोड 6 अंकों का होना चाहिए।";
+      warningEl.style.color = "blue";
+      warningEl.style.display = "block";
+    } else if (fieldText.includes("phone") || fieldText.includes("mobile")) {
+      warningEl.innerText = currentLang === "en" ? "Reminder: Mobile numbers must be exactly 10 digits." : "अनुस्मारक: मोबाइल नंबर 10 अंकों का होना चाहिए।";
+      warningEl.style.color = "blue";
+      warningEl.style.display = "block";
+    } else {
+      warningEl.style.display = "none";
+    }
+  }
+});
+
+// 6. Live Typing Validation (Now checks 10-digit Mobile limits)
+document.addEventListener("input", function(event) {
+  let fieldText = (event.target.name || event.target.id || event.target.placeholder || "").toLowerCase();
+  const warningEl = document.getElementById("formpilot-warning");
+  
+  // 6-Digit Check for PIN/ZIP/OTP
+  if (fieldText.includes("pin") || fieldText.includes("zip") || fieldText.includes("otp")) {
+    let typedValue = event.target.value.replace(/[^0-9]/g, ''); // Count numbers only
+    if (typedValue.length > 0 && typedValue.length !== 6) {
+      warningEl.innerText = currentLang === "en" ? "⚠️ Error: Code must be exactly 6 digits!" : "⚠️ त्रुटि: कोड ठीक 6 अंकों का होना चाहिए!";
+      warningEl.style.color = "red";
+      warningEl.style.display = "block";
+    } else if (typedValue.length === 6) {
+      warningEl.innerText = currentLang === "en" ? "✅ Code looks perfect! (🔒 Keep it secret)" : "✅ कोड सही है! (🔒 गुप्त रखें)";
+      warningEl.style.color = "green";
+    }
+  } 
+  // 10-Digit Check for Mobile/Phone
+  else if (fieldText.includes("phone") || fieldText.includes("mobile") || fieldText.includes("tel")) {
+    let typedValue = event.target.value.replace(/[^0-9]/g, '');
+    if (typedValue.length > 0 && typedValue.length !== 10) {
+      warningEl.innerText = currentLang === "en" ? "⚠️ Error: Mobile number must be exactly 10 digits!" : "⚠️ त्रुटि: मोबाइल नंबर ठीक 10 अंकों का होना चाहिए!";
+      warningEl.style.color = "red";
+      warningEl.style.display = "block";
+    } else if (typedValue.length === 10) {
+      warningEl.innerText = currentLang === "en" ? "✅ Mobile number looks perfect!" : "✅ मोबाइल नंबर सही है!";
+      warningEl.style.color = "green";
+    }
+  }
+});
