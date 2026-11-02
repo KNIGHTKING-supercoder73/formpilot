@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "FormPilot",
+  "version": "1.0",
+  "description": "Helps you understand confusing form fields.",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content.css"],
+      "js": ["content.js"]
+    }
+  ]
+}

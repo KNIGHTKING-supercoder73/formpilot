@@ -1,0 +1,14 @@
+#formpilot-assistant {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  background: white;
+  border: 1px solid #ccc;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  padding: 15px;
+  border-radius: 8px;
+  z-index: 999999;
+  font-family: Arial, sans-serif;
+  display: none; /* Hidden until a form field is clicked */
+}
